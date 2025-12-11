@@ -191,7 +191,7 @@ export class Start extends Phaser.Scene {
         this.left = this.input.keyboard.addKey("A", false, true);
         this.right = this.input.keyboard.addKey("D", false, true);
         
-        this.shoot = this.input.keyboard.addKey("Q", false, true);
+        this.shoot = this.input.keyboard.addKey("SPACE", false, true);
         
         this.sprint = this.input.keyboard.addKey("SHIFT", false, true);
 
@@ -371,22 +371,10 @@ export class Start extends Phaser.Scene {
             for (let j=0; j < 3; ++j)
                 this.makeTilemap(cx+i-1, cy+j-1);
 
-        if (this.shoot.isDown)
-        {
-            const pointer = this.input.activePointer;
-            const worldX = pointer.x + this.cameras.main.scrollX;
-            const worldY = pointer.y + this.cameras.main.scrollY;
-            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
-            const angleDeg = Phaser.Math.RadToDeg(angle);
-            
-            let bullet = new Bullet(this, this.player.x, this.player.y, angleDeg, this.player.bullet_speed);
-            this.player_bullets.add(bullet);
-        }
-
-        if (this.player.last_attack + this.player.attack_speed*this.player.attack_speed_bonus < time)
+        if (this.shoot.isDown && this.player.last_attack + this.player.attack_speed*this.player.attack_speed_bonus < time)
         {
             this.player.last_attack = time;
-
+            
             const pointer = this.input.activePointer;
             const worldX = pointer.x + this.cameras.main.scrollX;
             const worldY = pointer.y + this.cameras.main.scrollY;
