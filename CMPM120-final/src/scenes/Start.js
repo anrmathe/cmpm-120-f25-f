@@ -161,7 +161,7 @@ export class Start extends Phaser.Scene {
         psa_bg.setDepth(100);
         
         const psa_text = this.add.text(640, 360, 
-            'WASD to move\nQ to shoot\nSHIFT to sprint\n\nPress SPACE to start', 
+            'WASD to move\nShoot Automatically and Aim with Mouse\nSHIFT to sprint\n\nPress SPACE to start', 
             { 
                 fontSize: '48px', 
                 fill: '#FFFFFF', 
