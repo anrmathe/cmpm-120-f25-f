@@ -15,7 +15,6 @@ export class Start extends Phaser.Scene {
         this.load.image('projectile', 'assets/projectile.png');
         this.load.json('spawns', 'data/spawns.json');
  
-        // enemy sprites
         this.load.image('barnacle', 'assets/barnacle.png');
         this.load.image('bee', 'assets/bee.png');
         this.load.image('block', 'assets/block.png');
@@ -42,13 +41,11 @@ export class Start extends Phaser.Scene {
        
         this.load.image("coin", "assets/coin.png");
 
-        // from: https://opengameart.org/content/dungeon-crawl-32x32-tiles (CC-0 licensed)
         this.load.image("heal", "assets/hp.png");
         this.load.image("speed", "assets/speed.png");
         this.load.image("shield", "assets/shield.png");
         this.load.image("attackspeed", "assets/attack_speed.png");
 
-        // particles
         this.load.image("fire1", "assets/fire1.png");
         this.load.image("fire2", "assets/fire2.png");
         this.load.image("star1", "assets/star1.png");
@@ -57,7 +54,6 @@ export class Start extends Phaser.Scene {
         this.load.image("star4", "assets/star4.png");
 
 
-        // sound effects
         this.load.audio("congratulations_female", "assets/congratulationsf.ogg");
         this.load.audio("level_up_female", "assets/level_upf.ogg");
         this.load.audio("target_destroyed_female", "assets/target_destroyedf.ogg");
@@ -148,6 +144,8 @@ export class Start extends Phaser.Scene {
         this.coins = this.add.group("coins");
         this.powerups = this.add.group("powerups");
         this.wave = 1;
+        this.current_wave_enemies = 0;
+        this.wave_transitioning = false;
         this.wave_label = this.add.text(640, 100, "", { fontSize: '64px', fill: '#FF0000', align: "center" }).setScrollFactor(0);
         this.wave_label.setOrigin(0.5, 0.5);
         this.wave_label.setDepth(10);
@@ -166,19 +164,18 @@ export class Start extends Phaser.Scene {
             }
         }
         
-       // this.newWave();
-        this.spawnBoss();
+        this.startWave();
         this.player.score = 0;
         this.player.hp = 100;
         this.player.level = 1;
-        this.player.speed = 250; // Increased from 100 to 250
+        this.player.speed = 250;
         this.player.bonus_speed = 0;
         this.player.bonus_speed_stacks = 0;
-        this.player.bullet_speed = 350;
+        this.player.bullet_speed = 525;
         this.player.last_attack = 0;
         this.player.shield = 0;
         this.player.shield_stacks = 0;
-        this.player.attack_speed = 3000;
+        this.player.attack_speed = 200;
         this.player.attack_speed_bonus = 1;
         this.player.attack_angle = 0;
         this.player.damage = 1;
@@ -189,64 +186,142 @@ export class Start extends Phaser.Scene {
         this.player_bullets = this.add.group("player_bullets");
         this.enemy_bullets = this.add.group("enemy_bullets");
 
-        // Movement keys
         this.up = this.input.keyboard.addKey("W", false, true);
         this.down = this.input.keyboard.addKey("S", false, true);
         this.left = this.input.keyboard.addKey("A", false, true);
         this.right = this.input.keyboard.addKey("D", false, true);
         
-        // Shooting key (Q) - no cooldown
         this.shoot = this.input.keyboard.addKey("Q", false, true);
         
-        // Sprint key (SHIFT)
         this.sprint = this.input.keyboard.addKey("SHIFT", false, true);
 
         this.cameras.main.startFollow(this.player, true);
         this.cameras.main.setDeadzone(800, 400);
     }
 
-    newWave()
+    startWave()
     {
-        const spawns = this.cache.json.get("spawns");
-        let idx = Math.floor(Math.random()*spawns.length);
-        const spawn = spawns[idx];
-        this.wave_label.text = "BEWARE the " + spawn.name;
-        this.description_label.text = spawn.description;
-        this.time.delayedCall(5000, () => { this.wave_label.text = "";
-                                            this.description_label.text = ""; });
-        const n = spawn.count*(Math.log(this.wave)*this.wave+1)
-        for (let i = 0; i < n; ++i)
+        if (this.wave > 4) return;
+        if (this.wave === 1) {
+            this.spawnMeleeWave();
+        } else if (this.wave === 2) {
+            this.spawnRangedWave();
+        } else if (this.wave === 3) {
+            this.spawnMixedWave();
+        } else if (this.wave === 4) {
+            this.spawnBoss();
+        }
+    }
+
+    spawnMeleeWave()
+    {
+        this.wave_label.text = "WAVE 1: MELEE ENEMIES";
+        this.description_label.text = "They rush at you!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const sprites = ['barnacle', 'bee', 'frog', 'ladybug', 'mouse'];
+        const count = 10;
+        this.current_wave_enemies = count;
+
+        for (let i = 0; i < count; ++i)
         {
-            const dist = 1000 + i*200 + Math.random()*500; 
-            const angle = i * 120/spawn.count  + Math.random()*40 - 80;
-            idx = Math.floor(Math.random()*spawn.target.length);
-            const target = spawn.target[idx];
-            const e = new Enemy(this, dist, 0, spawn.sprite, angle, spawn.speed, spawn.attack_rate, spawn.bullet_speed, spawn.damage, this.getTarget(target), this.time.now);
+            const dist = 800 + i*100 + Math.random()*300; 
+            const angle = i * 360/count + Math.random()*20;
+            const sprite = sprites[Math.floor(Math.random()*sprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 400, 1000, 300, 5, this.player, this.time.now, "melee");
             e.setScale(0.2);
             Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
             this.enemy_group.add(e);
             this.physics.add.existing(e);
-            
+        }
+    }
+
+    spawnRangedWave()
+    {
+        this.wave_label.text = "WAVE 2: RANGED ENEMIES";
+        this.description_label.text = "They keep their distance!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const sprites = ['blue_fish', 'blue_worm', 'yellow_fish', 'yellow_worm'];
+        const count = 12;
+        this.current_wave_enemies = count;
+
+        for (let i = 0; i < count; ++i)
+        {
+            const dist = 1000 + i*150 + Math.random()*400; 
+            const angle = i * 360/count  + Math.random()*20;
+            const sprite = sprites[Math.floor(Math.random()*sprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 200, 2000, 500, 8, this.player, this.time.now, "ranged");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
+    }
+
+    spawnMixedWave()
+    {
+        this.wave_label.text = "WAVE 3: MIXED ASSAULT";
+        this.description_label.text = "Both types attack!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const meleeSprites = ['barnacle', 'bee', 'frog', 'ladybug', 'mouse'];
+        const rangedSprites = ['blue_fish', 'blue_worm', 'yellow_fish', 'yellow_worm'];
+        const meleeCount = 8;
+        const rangedCount = 8;
+        this.current_wave_enemies = meleeCount + rangedCount;
+
+        for (let i = 0; i < meleeCount; ++i)
+        {
+            const dist = 700 + i*100 + Math.random()*300; 
+            const angle = i * 360/meleeCount + Math.random()*20;
+            const sprite = meleeSprites[Math.floor(Math.random()*meleeSprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 500, 1000, 300, 10, this.player, this.time.now, "melee");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
         }
 
-        this.time.delayedCall(30000, () => {    this.newWave();
-                                             this.wave++;});
+        for (let i = 0; i < rangedCount; ++i)
+        {
+            const dist = 1100 + i*150 + Math.random()*400; 
+            const angle = i * 360/rangedCount + Math.random()*20;
+            const sprite = rangedSprites[Math.floor(Math.random()*rangedSprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 250, 1800, 500, 12, this.player, this.time.now, "ranged");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
     }
 
     spawnBoss()
     {
-        const e = new Boss(this, 1350, 480, "mean_block", 120, 400, 600, 20, this.time.now);
+        const e = new Boss(this, this.player.x + 400, this.player.y, "mean_block", 120, 400, 600, 20, this.time.now);
         e.setDepth(9);
         this.wave_label.text = e.name;
         this.description_label.text = "Good Luck! You will need it.";
-        this.time.delayedCall(5000, () => { this.wave_label.text = "";
-                                            this.description_label.text = ""; });
+        this.time.delayedCall(5000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
         
         e.setScale(0.1);
         this.enemy_group.add(e);
         this.physics.add.existing(e);
         this.cameras.main.shake(1500, 0.005);
         this.tweens.add({targets: e, scale: 1.2, duration: 1500});
+        this.current_wave_enemies = 1;
     }
 
     getTarget(name)
@@ -275,7 +350,6 @@ export class Start extends Phaser.Scene {
         if (this.left.isDown) move.x -= 1;
         if (this.right.isDown) move.x += 1;
         
-        // Sprint multiplier: 2x speed when holding SHIFT
         let factor = this.sprint.isDown ? 2 : 1;
         let speed = this.player.speed + this.player.bonus_speed;
         
@@ -297,38 +371,52 @@ export class Start extends Phaser.Scene {
             for (let j=0; j < 3; ++j)
                 this.makeTilemap(cx+i-1, cy+j-1);
 
-        // Q key shooting - NO COOLDOWN
         if (this.shoot.isDown)
         {
-            for (let i = 0; i < 4; i++)
-            {
-                let bullet = new Bullet(this, this.player.x, this.player.y, this.player.attack_angle + i*90, this.player.bullet_speed);
-                this.player_bullets.add(bullet);
-            }
-            this.player.attack_angle += 45;
+            const pointer = this.input.activePointer;
+            const worldX = pointer.x + this.cameras.main.scrollX;
+            const worldY = pointer.y + this.cameras.main.scrollY;
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
+            const angleDeg = Phaser.Math.RadToDeg(angle);
+            
+            let bullet = new Bullet(this, this.player.x, this.player.y, angleDeg, this.player.bullet_speed);
+            this.player_bullets.add(bullet);
         }
 
-        // Automatic shooting with cooldown (original functionality)
         if (this.player.last_attack + this.player.attack_speed*this.player.attack_speed_bonus < time)
         {
             this.player.last_attack = time;
 
-            for (let i = 0; i < 4; i++)
-            {
-                let bullet = new Bullet(this, this.player.x, this.player.y, this.player.attack_angle + i*90, this.player.bullet_speed);
-                this.player_bullets.add(bullet);
-            }
-            this.player.attack_angle += 45;
+            const pointer = this.input.activePointer;
+            const worldX = pointer.x + this.cameras.main.scrollX;
+            const worldY = pointer.y + this.cameras.main.scrollY;
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
+            const angleDeg = Phaser.Math.RadToDeg(angle);
+            
+            let bullet = new Bullet(this, this.player.x, this.player.y, angleDeg, this.player.bullet_speed);
+            this.player_bullets.add(bullet);
         }       
 
         
         this.physics.world.overlap(this.player_bullets, this.enemy_group, (b,e) => { 
+                                if (e.isDead) return;
                                 if (e.takeDamage(this.player.damage)) { 
+                                    e.isDead = true;
+                                    this.current_wave_enemies--;
                                     if (this.onEnemyDestroy(e))
                                     {
                                         this.scene.stop("Start");
                                         this.scene.start('YouWin');
-                                    } 
+                                        return;
+                                    }
+                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                                        this.wave_transitioning = true;
+                                        this.wave++;
+                                        this.time.delayedCall(2000, () => {
+                                            this.startWave();
+                                            this.wave_transitioning = false;
+                                        });
+                                    }
                                 } 
                                 b.destroy(true); 
                             });
@@ -337,12 +425,33 @@ export class Start extends Phaser.Scene {
                                 if (e.invulnerable) return;
                                 e.damage = 10; 
                                 this.playerTakeDamage(e); 
+                                
+                                if (e.type === "melee") {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const distance = 400;
+                                    e.x = p.x + Math.cos(angle) * distance;
+                                    e.y = p.y + Math.sin(angle) * distance;
+                                    e.invulnerable = true;
+                                    this.time.delayedCall(500, () => {e.invulnerable = false;});
+                                    return;
+                                }
+                                
                                 if (e.takeDamage(5)) 
                                 { 
+                                    this.current_wave_enemies--;
                                     if (this.onEnemyDestroy(e))
                                     {
                                         this.scene.stop("Start");
                                         this.scene.start('YouWin');
+                                        return;
+                                    }
+                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                                        this.wave_transitioning = true;
+                                        this.wave++;
+                                        this.time.delayedCall(2000, () => {
+                                            this.startWave();
+                                            this.wave_transitioning = false;
+                                        });
                                     }
                                 }
                                 else
@@ -397,7 +506,6 @@ export class Start extends Phaser.Scene {
         if (type == "speed")
         {
             this.player.bonus_speed = 100;
-            // extend duration
             this.player.bonus_speed_stacks++;
             this.time.delayedCall(10000, () => { 
                             this.player.bonus_speed_stacks--;
@@ -407,7 +515,6 @@ export class Start extends Phaser.Scene {
         }
         if (type == "shield")
         {
-            // extend duration + stack amount
             this.player.shield += 50;
             this.player.shield_stacks++;
             this.time.delayedCall(15000, () => {
@@ -418,7 +525,6 @@ export class Start extends Phaser.Scene {
         }
         if (type == "attackspeed")
         {
-            // stack intensity
             this.player.attack_speed_bonus *= 0.25;
             this.time.delayedCall(5000, () => {this.player.attack_speed_bonus *= 4;});
         }
@@ -457,11 +563,6 @@ export class Start extends Phaser.Scene {
     threshold(level)
     {
         let n = level;
-        // sum of first n squares
-        // level 2 at 1^2*10 = 10
-        // level 3 at (1^2 + 2^2)*10 = 50
-        // level 4 at (1^2 + 2^2 + 3^2)*10 = 140
-        // etc. (delta between two levels is level*level*10)
         return (n*(n+1)*(2*n+1)/6)*10;
     }
 
@@ -481,7 +582,6 @@ export class Start extends Phaser.Scene {
 
     onPlayerDamage(player, damage)
     {
-        // you can change this completely
         player.tint = 0xff0000;
         this.time.delayedCall(500, () => { player.tint = 0xffffff; }); 
 
@@ -559,7 +659,6 @@ export class Start extends Phaser.Scene {
             color: [0xcaebee, 0xff0000]
         }); 
         particles.setDepth(25);
-       // this.particles.start();
         this.time.delayedCall(300, () => particles.destroy(true));
         const levelUpSounds = ['level_up_male', 'level_up_female', ''];
         const randomSound = Phaser.Utils.Array.GetRandom(levelUpSounds);

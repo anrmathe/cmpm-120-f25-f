@@ -31,7 +31,7 @@ export class Boss extends Phaser.GameObjects.Sprite {
          this.dot.setDepth(6);
          this.mana = 100;
          this.hp = 100;
-         this.mps = 2; // mana regeneration per second
+         this.mps = 2;
          this.state = STATE.IDLE;
          this.abilities = {melee: {last_attack: time + Math.random()*4000, attack_rate: 2000, mana: 0},
                            fireball: {last_attack: time + Math.random()*5000, attack_rate: 5000, mana: 30},
@@ -54,8 +54,8 @@ export class Boss extends Phaser.GameObjects.Sprite {
 
     takeDamage(amount)
     {
+        this.healthbar.decrease(amount);
         this.hp -= amount;
-        this.healthbar.decrease(Math.min(amount, this.hp));
         if (this.hp <= 0.1){
             this.hp = 0;
             return true;
@@ -209,10 +209,58 @@ export class Boss extends Phaser.GameObjects.Sprite {
 
     transition(current, hp, mana, distance_to_player, meleeAvailable, fireballAvailable, healAvailable, time)
     {
+        if (current == STATE.IDLE)
+        {
+            if (hp < 100) return STATE.MOVETOPLAYER;
+            return STATE.IDLE;
+        }
+        
         if (current == STATE.MOVETOPLAYER)
         {
+            if (hp < 30 && healAvailable) return STATE.HEAL;
             if (distance_to_player < 125 && meleeAvailable) return STATE.MELEE;
+            if (distance_to_player > 300 && distance_to_player < 500 && fireballAvailable) return STATE.FIREBALL;
+            if (distance_to_player < 80) return STATE.MOVEAWAY;
+            return STATE.MOVETOPLAYER;
         }
+        
+        if (current == STATE.MOVEAWAY)
+        {
+            if (hp < 30 && healAvailable) return STATE.HEAL;
+            if (distance_to_player > 150 && fireballAvailable) return STATE.FIREBALL;
+            if (distance_to_player > 200) return STATE.MOVETOPLAYER;
+            return STATE.MOVEAWAY;
+        }
+        
+        if (current == STATE.MOVETOCENTER)
+        {
+            if (hp < 30 && healAvailable) return STATE.HEAL;
+            if (distance_to_player < 150) return STATE.MOVETOPLAYER;
+            return STATE.MOVETOCENTER;
+        }
+        
+        if (current == STATE.MELEE)
+        {
+            if (hp < 30 && healAvailable) return STATE.HEAL;
+            if (distance_to_player > 150) return STATE.MOVETOPLAYER;
+            if (distance_to_player < 100) return STATE.MOVEAWAY;
+            return STATE.MOVETOPLAYER;
+        }
+        
+        if (current == STATE.FIREBALL)
+        {
+            if (hp < 30 && healAvailable) return STATE.HEAL;
+            if (distance_to_player < 150) return STATE.MOVETOPLAYER;
+            if (distance_to_player > 400) return STATE.MOVETOPLAYER;
+            return STATE.MOVEAWAY;
+        }
+        
+        if (current == STATE.HEAL)
+        {
+            if (distance_to_player < 200) return STATE.MOVEAWAY;
+            return STATE.MOVETOPLAYER;
+        }
+        
         return STATE.MOVETOPLAYER;
     }
 }

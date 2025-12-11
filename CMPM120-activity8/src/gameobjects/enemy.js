@@ -1,7 +1,7 @@
 import {Bullet} from "./bullet.js";
 
 export class Enemy extends Phaser.GameObjects.Sprite {
-    constructor(scene, x, y, which, direction, speed, attack_rate, bullet_speed, damage, target, time){
+    constructor(scene, x, y, which, direction, speed, attack_rate, bullet_speed, damage, target, time, type="ranged"){
          super(scene, x, y, which);
          scene.add.existing(this);
          scene.physics.add.existing(this);
@@ -17,8 +17,13 @@ export class Enemy extends Phaser.GameObjects.Sprite {
          this.last_attack = time + Math.random()*this.attack_rate;
          this.dot = scene.add.sprite(0, 0, "dot");
          this.dot.setDepth(6);
+         this.type = type;
+         this.hp = 1;
          
-         
+         if (this.type === "melee") {
+             this.speed *= 1.5;
+             this.tint = 0xffaaaa;
+         }
     }
 
     preUpdate(time, delta)
@@ -30,22 +35,37 @@ export class Enemy extends Phaser.GameObjects.Sprite {
         const angle = Math.atan2(dy, dx);
         this.rotation = angle+Math.PI;
         
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10)
-        {
-            this.x += Math.cos(angle)*this.speed*dt;
-            this.y += Math.sin(angle)*this.speed*dt;
-        }
-        else
-        {
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        
+        if (this.type === "melee") {
+            if (distance > 10) {
+                this.x += Math.cos(angle)*this.speed*dt;
+                this.y += Math.sin(angle)*this.speed*dt;
+            }
+        } 
+        else {
+            const optimalRange = 300;
+            
+            if (distance > optimalRange + 50) {
+                this.x += Math.cos(angle)*this.speed*dt;
+                this.y += Math.sin(angle)*this.speed*dt;
+            } 
+            else if (distance < optimalRange - 50) {
+                this.x -= Math.cos(angle)*this.speed*dt;
+                this.y -= Math.sin(angle)*this.speed*dt;
+            }
+            
             this.rotation = Math.atan2(this.scene.player.y - this.y, this.scene.player.x - this.x) + Math.PI;
+            
+            if (this.last_attack + this.attack_rate < time)
+            {
+                this.last_attack = time;
+                let b = new Bullet(this.scene, this.x, this.y, this.angle+180, this.bullet_speed, this.damage);
+                b.tint = 0xff0000;
+                this.scene.enemy_bullets.add(b);
+            }
         }
-        if (this.last_attack + this.attack_rate < time)
-        {
-            this.last_attack = time;
-            let b = new Bullet(this.scene, this.x, this.y, this.angle+180, this.bullet_speed, this.damage);
-            b.tint = 0xff0000;
-            this.scene.enemy_bullets.add(b);
-        }
+        
         let bounds = this.scene.cameras.main.worldView;
         let show_dot = false;
         this.dot.x = this.x;
@@ -75,6 +95,7 @@ export class Enemy extends Phaser.GameObjects.Sprite {
 
     takeDamage(amount)
     {
-        return true;
+        this.hp -= amount;
+        return this.hp <= 0;
     }
 }
