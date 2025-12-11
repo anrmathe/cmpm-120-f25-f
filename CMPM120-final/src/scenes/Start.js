@@ -12,13 +12,12 @@ export class Start extends Phaser.Scene {
         this.load.image('background', 'assets/bg.png');
         //this.load.image('character', 'assets/char.png');
 
-        // Load as spritesheet
         this.load.spritesheet('character', 'assets/skeleton.png', {
-            frameWidth: 32,  // adjust to your sprite's width
-            frameHeight: 32  // adjust to your sprite's height
+            frameWidth: 32,
+            frameHeight: 32 
         });
         
-        this.load.image('projectile', 'assets/flare_01.png');
+        this.load.image('projectile', 'assets/projectile.png');
         this.load.json('spawns', 'data/spawns.json');
  
         // enemy sprites
@@ -155,9 +154,8 @@ export class Start extends Phaser.Scene {
         this.physics.add.existing(this.player);
 
 
-        // Add PSA overlay
         this.psa_active = true;
-        this.physics.pause(); // Pause the game initially
+        this.physics.pause();
         
         const psa_bg = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7).setScrollFactor(0);
         psa_bg.setDepth(100);
@@ -174,10 +172,10 @@ export class Start extends Phaser.Scene {
         psa_text.setOrigin(0.5, 0.5);
         psa_text.setDepth(101);
         
-        // Add space key to dismiss PSA
+
         this.space = this.input.keyboard.addKey("SPACE", false, true);
         
-        // Store references to remove them later
+
         this.psa_elements = { bg: psa_bg, text: psa_text };
 
         this.enemy_group = this.add.group("enemies");
@@ -226,16 +224,15 @@ export class Start extends Phaser.Scene {
         this.player_bullets = this.add.group("player_bullets");
         this.enemy_bullets = this.add.group("enemy_bullets");
 
-        // Movement keys
+
         this.up = this.input.keyboard.addKey("W", false, true);
         this.down = this.input.keyboard.addKey("S", false, true);
         this.left = this.input.keyboard.addKey("A", false, true);
         this.right = this.input.keyboard.addKey("D", false, true);
         
-        // Shooting key (Q) - no cooldown
+
         this.shoot = this.input.keyboard.addKey("Q", false, true);
         
-        // Sprint key (SHIFT)
         this.sprint = this.input.keyboard.addKey("SHIFT", false, true);
 
         this.cameras.main.startFollow(this.player, true);
@@ -389,7 +386,7 @@ export class Start extends Phaser.Scene {
             this.psa_active = false;
             this.psa_elements.bg.destroy();
             this.psa_elements.text.destroy();
-            this.physics.resume(); // Resume the game
+            this.physics.resume(); 
         }
         
         if (this.psa_active) return; 
@@ -403,7 +400,6 @@ export class Start extends Phaser.Scene {
         if (this.left.isDown) move.x -= 1;
         if (this.right.isDown) move.x += 1;
         
-        // Sprint multiplier: 2x speed when holding SHIFT
         let factor = this.sprint.isDown ? 2 : 1;
         let speed = this.player.speed + this.player.bonus_speed;
         
@@ -425,7 +421,6 @@ export class Start extends Phaser.Scene {
             for (let j=0; j < 3; ++j)
                 this.makeTilemap(cx+i-1, cy+j-1);
 
-        // Q key shooting - aim towards mouse
         if (this.shoot.isDown)
         {
             const pointer = this.input.activePointer;
@@ -438,7 +433,6 @@ export class Start extends Phaser.Scene {
             this.player_bullets.add(bullet);
         }
 
-        // Automatic shooting with cooldown - aim towards mouse
         if (this.player.last_attack + this.player.attack_speed*this.player.attack_speed_bonus < time)
         {
             this.player.last_attack = time;
@@ -455,76 +449,75 @@ export class Start extends Phaser.Scene {
 
         
         this.physics.world.overlap(this.player_bullets, this.enemy_group, (b,e) => { 
-                                if (e.isDead) return;
-                                if (e.takeDamage(this.player.damage)) { 
-                                    e.isDead = true;
-                                    this.current_wave_enemies--;
-                                    if (this.onEnemyDestroy(e))
-                                    {
-                                        this.scene.stop("Start");
-                                        this.scene.start('YouWin');
-                                        return;
-                                    }
-                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
-                                        this.wave_transitioning = true;
-                                        this.wave++;
-                                        this.time.delayedCall(2000, () => {
-                                            this.startWave();
-                                            this.wave_transitioning = false;
-                                        });
-                                    }
-                                } 
-                                b.destroy(true); 
-                            });
+            if (e.isDead) return;
+            if (e.takeDamage(this.player.damage)) { 
+                e.isDead = true;
+                this.current_wave_enemies--;
+                if (this.onEnemyDestroy(e))
+                {
+                    this.scene.stop("Start");
+                    this.scene.start('YouWin');
+                    return;
+                }
+                if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                    this.wave_transitioning = true;
+                    this.wave++;
+                    this.time.delayedCall(2000, () => {
+                        this.startWave();
+                        this.wave_transitioning = false;
+                    });
+                }
+            } 
+            b.destroy(true); 
+        });
         this.physics.world.overlap(this.player, this.enemy_bullets, (p,b) => { this.playerTakeDamage(b); b.destroy(true);});
         this.physics.world.overlap(this.player, this.enemy_group, (p,e) => { 
-                                if (e.invulnerable) return;
-                                e.damage = 10; 
-                                this.playerTakeDamage(e); 
-                                
-                                // Melee enemies teleport away after contact
-                                if (e.type === "melee") {
-                                    const angle = Math.random() * Math.PI * 2;
-                                    const distance = 400;
-                                    e.x = p.x + Math.cos(angle) * distance;
-                                    e.y = p.y + Math.sin(angle) * distance;
-                                    e.invulnerable = true;
-                                    this.time.delayedCall(500, () => {e.invulnerable = false;});
-                                    return;
-                                }
-                                
-                                if (e.takeDamage(5)) 
-                                { 
-                                    e.isDead = true;
-                                    this.current_wave_enemies--;
-                                    if (this.onEnemyDestroy(e))
-                                    {
-                                        this.scene.stop("Start");
-                                        this.scene.start('YouWin');
-                                        return;
-                                    }
-                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
-                                        this.wave_transitioning = true;
-                                        this.wave++;
-                                        this.time.delayedCall(2000, () => {
-                                            this.startWave();
-                                            this.wave_transitioning = false;
-                                        });
-                                    }
-                                }
-                                else
-                                {
-                                    e.invulnerable = true; 
-                                    const dx = 0.8*(p.x - e.x);
-                                    const dy = 0.8*(p.y - e.y);
-                                    this.tweens.add({
-                                        targets: p,
-                                        x: "+=" + dx,
-                                        y: "+=" + dy,
-                                        duration: 200,
-                                        onComplete: () => {e.invulnerable = false;}
-                                    })
-                                } });
+        if (e.invulnerable) return;
+        e.damage = 10; 
+        this.playerTakeDamage(e); 
+        
+        if (e.type === "melee") {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 400;
+            e.x = p.x + Math.cos(angle) * distance;
+            e.y = p.y + Math.sin(angle) * distance;
+            e.invulnerable = true;
+            this.time.delayedCall(500, () => {e.invulnerable = false;});
+            return;
+        }
+        
+        if (e.takeDamage(5)) 
+        { 
+            e.isDead = true;
+            this.current_wave_enemies--;
+            if (this.onEnemyDestroy(e))
+            {
+                this.scene.stop("Start");
+                this.scene.start('YouWin');
+                return;
+            }
+            if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                this.wave_transitioning = true;
+                this.wave++;
+                this.time.delayedCall(2000, () => {
+                    this.startWave();
+                    this.wave_transitioning = false;
+                });
+            }
+        }
+        else
+        {
+            e.invulnerable = true; 
+            const dx = 0.8*(p.x - e.x);
+            const dy = 0.8*(p.y - e.y);
+            this.tweens.add({
+                targets: p,
+                x: "+=" + dx,
+                y: "+=" + dy,
+                duration: 200,
+                onComplete: () => {e.invulnerable = false;}
+            })
+        } });
         this.physics.world.overlap(this.player, this.coins, (p,c) => { 
                c.body.enable = false;
                this.tweens.add({
@@ -727,7 +720,6 @@ export class Start extends Phaser.Scene {
         }); 
         particles.setDepth(25);
         this.time.delayedCall(300, () => particles.destroy(true));
-        // Use the MP3 level up sound
         this.sound.play('level_up');
         const lvlText = this.add.text(player.x, player.y - 40, `Level ${level}!`, {
         fontSize: '28px',

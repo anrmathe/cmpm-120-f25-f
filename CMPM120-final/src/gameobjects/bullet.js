@@ -5,7 +5,7 @@ export class Bullet extends Phaser.GameObjects.Sprite {
          scene.physics.add.existing(this);
          this.direction = Phaser.Math.DegToRad(direction);
          this.setDepth(4);
-         this.setScale(0.2);
+         this.setScale(0.6);
          this.scene = scene;
          this.last_time = this.scene.time.now;
          this.speed = speed;
