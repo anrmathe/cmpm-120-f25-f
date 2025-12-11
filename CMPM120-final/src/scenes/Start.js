@@ -1,0 +1,747 @@
+import { Bullet } from '../gameobjects/bullet.js';
+import { Enemy } from '../gameobjects/enemy.js';
+import { Boss } from '../gameobjects/boss.js';
+
+export class Start extends Phaser.Scene {
+
+    constructor() {
+        super('Start');
+    }
+
+    preload() {
+        this.load.image('background', 'assets/bg.png');
+        //this.load.image('character', 'assets/char.png');
+
+        // Load as spritesheet
+        this.load.spritesheet('character', 'assets/skeleton.png', {
+            frameWidth: 32,  // adjust to your sprite's width
+            frameHeight: 32  // adjust to your sprite's height
+        });
+        
+        this.load.image('projectile', 'assets/flare_01.png');
+        this.load.json('spawns', 'data/spawns.json');
+ 
+        // enemy sprites
+        this.load.image('barnacle', 'assets/barnacle.png');
+        this.load.image('bee', 'assets/bee.png');
+        this.load.image('block', 'assets/block.png');
+        this.load.image('blue_fish', 'assets/blue_fish.png');
+        this.load.image('blue_worm', 'assets/blue_worm.png');
+        this.load.image('mean_block', 'assets/enemy.png');
+        this.load.image('fly', 'assets/fly.png');
+        this.load.image('frog', 'assets/frog.png');
+        this.load.image('ladybug', 'assets/ladybug.png');
+        this.load.image('mouse', 'assets/mouse.png');
+        this.load.image('saw', 'assets/saw.png');
+        this.load.image('slime_block', 'assets/slime_block.png');
+        this.load.image('slime_fire', 'assets/slime_fire.png');
+        this.load.image('snail', 'assets/spike_slime.png');
+        this.load.image('yellow_fish', 'assets/yellow_fish.png');
+        this.load.image('yellow_worm', 'assets/yellow_worm.png');
+        this.N = 4;
+        this.load.image("landscape", "assets/tilesheet.png");
+        this.load.tilemapTiledJSON('tilemap', 'assets/tilemap0_0try.tmj');
+        this.M = 2;
+        this.load.tilemapTiledJSON('objectmap', 'assets/objectmap0_0try.tmj');
+        this.load.image("dot", "assets/dot.png");
+
+       
+        this.load.image("coin", "assets/coin.png");
+
+        // from: https://opengameart.org/content/dungeon-crawl-32x32-tiles (CC-0 licensed)
+        this.load.image("heal", "assets/hp.png");
+        this.load.image("speed", "assets/speed.png");
+        this.load.image("shield", "assets/shield.png");
+        this.load.image("attackspeed", "assets/attack_speed.png");
+
+        // particles
+        this.load.image("fire1", "assets/fire1.png");
+        this.load.image("fire2", "assets/fire2.png");
+        this.load.image("star1", "assets/star1.png");
+        this.load.image("star2", "assets/star2.png");
+        this.load.image("star3", "assets/star3.png");
+        this.load.image("star4", "assets/star4.png");
+
+
+        // sound effects
+        this.load.audio("congratulations_female", "assets/congratulationsf.ogg");
+        this.load.audio("level_up_female", "assets/level_upf.ogg");
+        this.load.audio("target_destroyed_female", "assets/target_destroyedf.ogg");
+        this.load.audio("congratulations_male", "assets/congratulationsm.ogg");
+        this.load.audio("level_up_male", "assets/level_upm.ogg");
+        this.load.audio("level_up", "assets/level-up-08-402152.mp3");
+        this.load.audio("target_destroyed_male", "assets/target_destroyedm.ogg");
+        this.load.audio("congratulations_synth", "assets/congratulationss.ogg");
+        this.load.audio("level_up_synth", "assets/level_ups.ogg");
+        this.load.audio("hurt1", "assets/hurt1.ogg");
+        this.load.audio("hurt2", "assets/hurt2.ogg");
+        this.load.audio("hurt3", "assets/hurt3.ogg");
+        this.load.audio("hurt4", "assets/impactful-damage-425132.mp3");
+        this.load.audio("upgrade1", "assets/upgrade1.ogg");
+        this.load.audio("upgrade2", "assets/upgrade2.ogg");
+        this.load.audio("upgrade3", "assets/upgrade3.ogg");
+        this.load.audio("upgrade4", "assets/upgrade4.ogg");
+        this.load.audio("explosion1", "assets/explosion1.ogg");
+        this.load.audio("explosion2", "assets/explosion2.ogg");
+        this.load.audio("explosion3", "assets/explosion3.ogg");
+
+        this.load.audio("bg", "assets/bg.ogg");
+    }
+
+    makeTilemap(x,y)
+    {
+        var background = undefined;
+        if (this.tilemaps[x+"_" + y]) return;
+        this.tilemaps[x+"_" + y] = true;
+        x = x*30*32;
+        y = y*30*32;
+        background = this.add.tilemap('tilemap', 32, 32, 30, 30);
+        var tileset = background.addTilesetImage("landscape", "landscape", 32, 32, 0, 2);
+        var bg = background.createLayer("background", tileset, x, y);
+        bg.setDepth(0);
+        var layer = background.createLayer("obstacles", tileset, x, y);
+        layer.setCollisionBetween(1,1767);
+        layer.setDepth(2);
+        this.physics.add.collider(layer, this.player);
+        var paths = background.createLayer("paths", tileset, x, y);
+        paths.setDepth(1);
+        this.paths.add(paths);
+        paths.setCollisionBetween(1,1767);
+        let deco = background.createLayer("decoration", tileset, x, y);
+        deco.setDepth(3);
+
+        let objmap = this.add.tilemap('objectmap', 32, 32, 30, 30);
+
+        let objects = objmap.getObjectLayer("Collectibles");
+        if (objects)
+        {
+            for (var obj of objects.objects)
+            {
+                if (obj.properties)
+                {
+                    if (obj.properties[0].name == "value" && obj.properties[0].value)
+                    {
+                        let coin = this.physics.add.staticSprite(x+obj.x +16, y+obj.y-16, "coin");
+                        coin.value = Math.min(obj.properties[0].value, 100);
+                        coin.setDepth(8);
+                        coin.setScale(1 + coin.value/100);
+                        if (coin.value > 25)
+                        coin.tint = 0xffbbbb;
+                        if (coin.value > 50)
+                        coin.tint = 0xff5555;
+                        if (coin.value > 90)
+                        coin.tint = 0xff0000;
+                        this.coins.add(coin);
+                    }
+                    if (obj.properties[0].name == "powerup")
+                    {
+                        let powerup = this.physics.add.staticSprite(x + obj.x + 16, y+obj.y-16, obj.properties[0].value);
+                        powerup.powerup_type = obj.properties[0].value;
+                        powerup.setDepth(8);
+                        powerup.setScale(2);
+                        this.powerups.add(powerup);
+                    }
+                }
+            }
+        }
+    }
+
+    create() {
+        
+        this.player = this.add.sprite(1425, 1450, 'character', 0);
+        
+        this.player.setScale(2, 2);
+        this.player.setDepth(6);
+        this.physics.add.existing(this.player);
+
+
+        // Add PSA overlay
+        this.psa_active = true;
+        this.physics.pause(); // Pause the game initially
+        
+        const psa_bg = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7).setScrollFactor(0);
+        psa_bg.setDepth(100);
+        
+        const psa_text = this.add.text(640, 360, 
+            'WASD to move\nQ to shoot\nSHIFT to sprint\n\nPress SPACE to start', 
+            { 
+                fontSize: '48px', 
+                fill: '#FFFFFF', 
+                align: 'center',
+                fontStyle: 'bold'
+            }
+        ).setScrollFactor(0);
+        psa_text.setOrigin(0.5, 0.5);
+        psa_text.setDepth(101);
+        
+        // Add space key to dismiss PSA
+        this.space = this.input.keyboard.addKey("SPACE", false, true);
+        
+        // Store references to remove them later
+        this.psa_elements = { bg: psa_bg, text: psa_text };
+
+        this.enemy_group = this.add.group("enemies");
+        this.coins = this.add.group("coins");
+        this.powerups = this.add.group("powerups");
+        this.wave = 1;
+        this.current_wave_enemies = 0;
+        this.wave_transitioning = false;
+        this.wave_label = this.add.text(640, 100, "", { fontSize: '64px', fill: '#FF0000', align: "center" }).setScrollFactor(0);
+        this.wave_label.setOrigin(0.5, 0.5);
+        this.wave_label.setDepth(10);
+        this.description_label = this.add.text(640, 180, "", { fontSize: '32px', fill: '#FF0000', align: "center" }).setScrollFactor(0);
+        this.description_label.setOrigin(0.5, 0.5);
+        this.description_label.setDepth(10);
+        this.sound.play("bg", {loop: true});
+        this.tilemaps = {};
+        this.paths = this.add.group("paths");
+
+        for (let i = 0; i< 3; i++)
+        {
+            for (let j = 0; j < 3; ++j)
+            {
+                this.makeTilemap(i, j);
+            }
+        }
+        
+        this.startWave();
+        this.player.score = 0;
+        this.player.hp = 100;
+        this.player.level = 1;
+        this.player.speed = 250;
+        this.player.bonus_speed = 0;
+        this.player.bonus_speed_stacks = 0;
+        this.player.bullet_speed = 725;
+        this.player.last_attack = 0;
+        this.player.shield = 0;
+        this.player.shield_stacks = 0;
+        this.player.attack_speed = 300;
+        this.player.attack_speed_bonus = 1;
+        this.player.attack_angle = 0;
+        this.player.damage = 1;
+        this.score_label = this.add.text(0, 0, 'Points: ' + this.player.score, { fontSize: '32px', fill: '#000000' }).setScrollFactor(0);
+        this.score_label.setDepth(10);
+        
+        this.last_time = 0;
+        this.player_bullets = this.add.group("player_bullets");
+        this.enemy_bullets = this.add.group("enemy_bullets");
+
+        // Movement keys
+        this.up = this.input.keyboard.addKey("W", false, true);
+        this.down = this.input.keyboard.addKey("S", false, true);
+        this.left = this.input.keyboard.addKey("A", false, true);
+        this.right = this.input.keyboard.addKey("D", false, true);
+        
+        // Shooting key (Q) - no cooldown
+        this.shoot = this.input.keyboard.addKey("Q", false, true);
+        
+        // Sprint key (SHIFT)
+        this.sprint = this.input.keyboard.addKey("SHIFT", false, true);
+
+        this.cameras.main.startFollow(this.player, true);
+        this.cameras.main.setDeadzone(800, 400);
+    }
+
+    startWave()
+    {
+        if (this.wave > 4) return;
+        if (this.wave === 1) {
+            this.spawnMeleeWave();
+        } else if (this.wave === 2) {
+            this.spawnRangedWave();
+        } else if (this.wave === 3) {
+            this.spawnMixedWave();
+        } else if (this.wave === 4) {
+            this.spawnBoss();
+        }
+    }
+
+    spawnMeleeWave()
+    {
+        this.wave_label.text = "WAVE 1: MELEE ENEMIES";
+        this.description_label.text = "They rush at you!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const sprites = ['barnacle', 'bee', 'frog', 'ladybug', 'mouse'];
+        const count = 10;
+        this.current_wave_enemies = count;
+
+        for (let i = 0; i < count; ++i)
+        {
+            const dist = 800 + i*100 + Math.random()*300; 
+            const angle = i * 360/count + Math.random()*20;
+            const sprite = sprites[Math.floor(Math.random()*sprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 400, 1000, 300, 5, this.player, this.time.now, "melee");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
+    }
+
+    spawnRangedWave()
+    {
+        this.wave_label.text = "WAVE 2: RANGED ENEMIES";
+        this.description_label.text = "They keep their distance!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const sprites = ['blue_fish', 'blue_worm', 'yellow_fish', 'yellow_worm'];
+        const count = 12;
+        this.current_wave_enemies = count;
+
+        for (let i = 0; i < count; ++i)
+        {
+            const dist = 1000 + i*150 + Math.random()*400; 
+            const angle = i * 360/count  + Math.random()*20;
+            const sprite = sprites[Math.floor(Math.random()*sprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 200, 2000, 500, 8, this.player, this.time.now, "ranged");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
+    }
+
+    spawnMixedWave()
+    {
+        this.wave_label.text = "WAVE 3: MIXED ASSAULT";
+        this.description_label.text = "Both types attack!";
+        this.time.delayedCall(3000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+
+        const meleeSprites = ['barnacle', 'bee', 'frog', 'ladybug', 'mouse'];
+        const rangedSprites = ['blue_fish', 'blue_worm', 'yellow_fish', 'yellow_worm'];
+        const meleeCount = 8;
+        const rangedCount = 8;
+        this.current_wave_enemies = meleeCount + rangedCount;
+
+        for (let i = 0; i < meleeCount; ++i)
+        {
+            const dist = 700 + i*100 + Math.random()*300; 
+            const angle = i * 360/meleeCount + Math.random()*20;
+            const sprite = meleeSprites[Math.floor(Math.random()*meleeSprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 500, 1000, 300, 10, this.player, this.time.now, "melee");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
+
+        for (let i = 0; i < rangedCount; ++i)
+        {
+            const dist = 1100 + i*150 + Math.random()*400; 
+            const angle = i * 360/rangedCount + Math.random()*20;
+            const sprite = rangedSprites[Math.floor(Math.random()*rangedSprites.length)];
+            const e = new Enemy(this, dist, 0, sprite, angle, 250, 1800, 500, 12, this.player, this.time.now, "ranged");
+            e.setScale(0.2);
+            Phaser.Math.RotateAround(e, this.player.x, this.player.y, Phaser.Math.DegToRad(angle));
+            this.enemy_group.add(e);
+            this.physics.add.existing(e);
+        }
+    }
+
+    spawnBoss()
+    {
+        const e = new Boss(this, this.player.x + 400, this.player.y, "mean_block", 120, 400, 600, 20, this.time.now);
+        e.setDepth(9);
+        this.wave_label.text = e.name;
+        this.description_label.text = "Good Luck! You will need it.";
+        this.time.delayedCall(5000, () => { 
+            this.wave_label.text = "";
+            this.description_label.text = ""; 
+        });
+        
+        e.setScale(0.1);
+        this.enemy_group.add(e);
+        this.physics.add.existing(e);
+        this.cameras.main.shake(1500, 0.005);
+        this.tweens.add({targets: e, scale: 1.2, duration: 1500});
+        this.current_wave_enemies = 1;
+    }
+
+    getTarget(name)
+    {
+        if (name == "player")
+        {
+            return this.player;
+        }
+        if (name == "random")
+        {
+            return {x: this.player.x + Math.random()*this.game.canvas.width, y: this.player.y + Math.random()*this.game.canvas.height - this.game.canvas.height/2};
+        }
+        if (name == "center")
+        {
+            return {x: this.player.x + this.game.canvas.width/4, y: this.player.y};
+        }
+    }
+
+    update(time) {
+
+        if (this.psa_active && this.space.isDown) {
+            this.psa_active = false;
+            this.psa_elements.bg.destroy();
+            this.psa_elements.text.destroy();
+            this.physics.resume(); // Resume the game
+        }
+        
+        if (this.psa_active) return; 
+
+        let dt = (time - this.last_time)/1000;
+        this.last_time = time;
+        let attack = false;
+        let move = new Phaser.Math.Vector2(0,0);
+        if (this.up.isDown) move.y -= 1; 
+        if (this.down.isDown) move.y += 1;
+        if (this.left.isDown) move.x -= 1;
+        if (this.right.isDown) move.x += 1;
+        
+        // Sprint multiplier: 2x speed when holding SHIFT
+        let factor = this.sprint.isDown ? 2 : 1;
+        let speed = this.player.speed + this.player.bonus_speed;
+        
+        if (move.length() > 0)
+        {
+            move.normalize();
+            this.player.body.velocity.x = move.x*speed*factor;
+            this.player.body.velocity.y = move.y*speed*factor;
+        }
+        else
+        {
+            this.player.body.velocity.x = 0;
+            this.player.body.velocity.y = 0;
+        }
+
+        let cx = Math.floor(this.cameras.main.scrollX/960);
+        let cy = Math.floor(this.cameras.main.scrollY/960);
+        for (let i = 0; i < 4; ++i)
+            for (let j=0; j < 3; ++j)
+                this.makeTilemap(cx+i-1, cy+j-1);
+
+        // Q key shooting - aim towards mouse
+        if (this.shoot.isDown)
+        {
+            const pointer = this.input.activePointer;
+            const worldX = pointer.x + this.cameras.main.scrollX;
+            const worldY = pointer.y + this.cameras.main.scrollY;
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
+            const angleDeg = Phaser.Math.RadToDeg(angle);
+            
+            let bullet = new Bullet(this, this.player.x, this.player.y, angleDeg, this.player.bullet_speed);
+            this.player_bullets.add(bullet);
+        }
+
+        // Automatic shooting with cooldown - aim towards mouse
+        if (this.player.last_attack + this.player.attack_speed*this.player.attack_speed_bonus < time)
+        {
+            this.player.last_attack = time;
+
+            const pointer = this.input.activePointer;
+            const worldX = pointer.x + this.cameras.main.scrollX;
+            const worldY = pointer.y + this.cameras.main.scrollY;
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, worldX, worldY);
+            const angleDeg = Phaser.Math.RadToDeg(angle);
+            
+            let bullet = new Bullet(this, this.player.x, this.player.y, angleDeg, this.player.bullet_speed);
+            this.player_bullets.add(bullet);
+        }       
+
+        
+        this.physics.world.overlap(this.player_bullets, this.enemy_group, (b,e) => { 
+                                if (e.isDead) return;
+                                if (e.takeDamage(this.player.damage)) { 
+                                    e.isDead = true;
+                                    this.current_wave_enemies--;
+                                    if (this.onEnemyDestroy(e))
+                                    {
+                                        this.scene.stop("Start");
+                                        this.scene.start('YouWin');
+                                        return;
+                                    }
+                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                                        this.wave_transitioning = true;
+                                        this.wave++;
+                                        this.time.delayedCall(2000, () => {
+                                            this.startWave();
+                                            this.wave_transitioning = false;
+                                        });
+                                    }
+                                } 
+                                b.destroy(true); 
+                            });
+        this.physics.world.overlap(this.player, this.enemy_bullets, (p,b) => { this.playerTakeDamage(b); b.destroy(true);});
+        this.physics.world.overlap(this.player, this.enemy_group, (p,e) => { 
+                                if (e.invulnerable) return;
+                                e.damage = 10; 
+                                this.playerTakeDamage(e); 
+                                
+                                // Melee enemies teleport away after contact
+                                if (e.type === "melee") {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const distance = 400;
+                                    e.x = p.x + Math.cos(angle) * distance;
+                                    e.y = p.y + Math.sin(angle) * distance;
+                                    e.invulnerable = true;
+                                    this.time.delayedCall(500, () => {e.invulnerable = false;});
+                                    return;
+                                }
+                                
+                                if (e.takeDamage(5)) 
+                                { 
+                                    e.isDead = true;
+                                    this.current_wave_enemies--;
+                                    if (this.onEnemyDestroy(e))
+                                    {
+                                        this.scene.stop("Start");
+                                        this.scene.start('YouWin');
+                                        return;
+                                    }
+                                    if (this.current_wave_enemies <= 0 && this.wave < 4 && !this.wave_transitioning) {
+                                        this.wave_transitioning = true;
+                                        this.wave++;
+                                        this.time.delayedCall(2000, () => {
+                                            this.startWave();
+                                            this.wave_transitioning = false;
+                                        });
+                                    }
+                                }
+                                else
+                                {
+                                    e.invulnerable = true; 
+                                    const dx = 0.8*(p.x - e.x);
+                                    const dy = 0.8*(p.y - e.y);
+                                    this.tweens.add({
+                                        targets: p,
+                                        x: "+=" + dx,
+                                        y: "+=" + dy,
+                                        duration: 200,
+                                        onComplete: () => {e.invulnerable = false;}
+                                    })
+                                } });
+        this.physics.world.overlap(this.player, this.coins, (p,c) => { 
+               c.body.enable = false;
+               this.tweens.add({
+                  targets: c, 
+                  scale: 0.2, 
+                  duration: 300, 
+                  onComplete: () => {
+                        c.destroy(true);}
+                }); 
+                p.score += c.value; 
+                this.checkLevelUp();});
+        this.physics.world.overlap(this.player, this.powerups, (p,pu) => { 
+                    pu.body.enable = false;
+                    this.tweens.add({
+                        targets: pu, 
+                        scale: 0.2, 
+                        duration: 300, 
+                        onComplete: () => {
+                                pu.destroy(true);}
+                    });
+                    this.applyPowerup(pu.powerup_type);});
+        let percentage = Math.round(100*(this.player.score - this.threshold(this.player.level-1))/(this.threshold(this.player.level) - this.threshold(this.player.level-1)));
+        let text = "XP: " + this.player.score + " Level: " + this.player.level + " (" + percentage + "%) HP: " + this.player.hp;
+        if (this.player.shield)
+        {
+            text += " (Shield: " + this.player.shield + ")";
+        }
+        this.score_label.text = text;
+    }
+
+    applyPowerup(type)
+    {
+        if (type == "heal")
+        {
+            this.player.hp = Math.min(this.player.hp + 10, 100);
+        }
+        if (type == "speed")
+        {
+            this.player.bonus_speed = 100;
+            // extend duration
+            this.player.bonus_speed_stacks++;
+            this.time.delayedCall(10000, () => { 
+                            this.player.bonus_speed_stacks--;
+                            if (this.player.bonus_speed_stacks == 0)
+                                 this.player.bonus_speed = 0;
+                            });
+        }
+        if (type == "shield")
+        {
+            // extend duration + stack amount
+            this.player.shield += 50;
+            this.player.shield_stacks++;
+            this.time.delayedCall(15000, () => {
+                             this.player.shield_stacks--;
+                             if (this.player.shield_stacks == 0)
+                                 this.player.shield = 0;
+                            });
+        }
+        if (type == "attackspeed")
+        {
+            // stack intensity
+            this.player.attack_speed_bonus *= 0.25;
+            this.time.delayedCall(5000, () => {this.player.attack_speed_bonus *= 4;});
+        }
+
+    }
+
+    playerTakeDamage(bullet)
+    {
+        let damage = bullet.damage;
+        if (this.player.shield > 0)
+        {
+            this.player.shield -= damage;
+            damage = 0;
+            if (this.player.shield < 0)
+            {
+                damage = -this.player.shield;
+                this.player.shield = 0;
+            }
+        }
+        if (damage == 0) return;
+        this.player.hp -= damage; 
+        this.onPlayerDamage(this.player, damage);
+        
+        this.checkEndGame();
+    }
+
+    checkEndGame()
+    {
+        if (this.player.hp <= 0)
+        {
+            this.scene.stop("Start");
+            this.scene.start('GameOver');
+        }
+    }
+
+    threshold(level)
+    {
+        let n = level;
+        // sum of first n squares
+        // level 2 at 1^2*10 = 10
+        // level 3 at (1^2 + 2^2)*10 = 50
+        // level 4 at (1^2 + 2^2 + 3^2)*10 = 140
+        // etc. (delta between two levels is level*level*10)
+        return (n*(n+1)*(2*n+1)/6)*10;
+    }
+
+    checkLevelUp()
+    {
+        let n = this.player.level
+        if (this.player.score >= this.threshold(this.player.level))
+        {
+            this.player.level++;
+            this.onPlayerLevelUp(this.player, this.player.level);
+            this.player.attack_speed *= 0.85;
+            this.player.speed += 15;
+            this.player.bullet_speed += 20;
+            this.player.damage = Math.ceil(this.player.level/10);
+        }
+    }
+
+    onPlayerDamage(player, damage)
+    {
+        // you can change this completely
+        player.tint = 0xff0000;
+        this.time.delayedCall(500, () => { player.tint = 0xffffff; }); 
+
+        const hurtSounds = ['hurt4', 'hurt1', 'hurt2', 'hurt3'];
+        const randomHurt = hurtSounds[Phaser.Math.Between(0, hurtSounds.length - 1)];
+        this.sound.play(randomHurt, { volume: 0.5 });
+        
+
+        const dmgText = this.add.text(player.x, player.y - 40, `-${damage}`, {
+        fontSize: '24px',
+        fill: '#ff0000',
+        fontStyle: 'bold'
+        }).setDepth(10);
+        dmgText.setOrigin(0.5, 0.5);
+        this.tweens.add({
+            targets: dmgText,
+            y: player.y - 100,
+            alpha: 0,
+            duration: 800,
+            ease: 'Cubic.easeOut',
+            onComplete: () => dmgText.destroy()}
+            );
+
+        const p = this.add.particles(player.x, player.y, "star2",{
+            speed: { min: -80, max: 80 }, lifespan: 250, quantity: 6, scale: { start: 0.1, end: 0 }, gravityY: 200 });
+            this.time.delayedCall(500, () => { p.destroy(true); });
+        p.setDepth(5);
+        this.cameras.main.shake(200, 0.01); 
+    }
+
+    onEnemyDestroy(enemy)
+    {
+        const boom = ["explosion1", "explosion2", "explosion3"][Math.floor(Math.random()*3)];
+		this.sound.play(boom, { volume: 0.6 });
+		const burstSprite = this.add.sprite(enemy.x, enemy.y, 'fire2');
+		burstSprite.setDepth(8);
+		burstSprite.setScale(0.1);
+		burstSprite.alpha = 1;
+		this.tweens.add({
+			targets: burstSprite,
+			scaleX: 0.6,
+			scaleY: 0.6,
+			alpha: 0,
+			duration: 350,
+			ease: 'Sine.easeOut',
+			onComplete: () => burstSprite.destroy()
+		});
+
+		this.tweens.add({
+			targets: enemy,
+			angle: enemy.angle + 360,
+			scaleX: 0,
+			scaleY: 0,
+			alpha: 0,
+			duration: 300,
+			ease: 'Back.easeIn',
+			onComplete: () => {
+				if (enemy.dot) enemy.dot.destroy(true);
+				enemy.destroy(true);
+			}
+		});
+        if (enemy.isboss) return true;
+        return false;
+    }
+
+    onPlayerLevelUp(player, level)
+    {
+        let particles = this.add.particles(this.player.x, this.player.y, 'star3',{
+            scale: {start: 0.1, end: 0.05, random: false},
+            angle: {min:0, max:180},
+            x: {min: 0, max: 10},
+            y: 0,
+            gravityY: 0,
+            speed: 100,
+            color: [0xcaebee, 0xff0000]
+        }); 
+        particles.setDepth(25);
+        this.time.delayedCall(300, () => particles.destroy(true));
+        // Use the MP3 level up sound
+        this.sound.play('level_up');
+        const lvlText = this.add.text(player.x, player.y - 40, `Level ${level}!`, {
+        fontSize: '28px',
+        color: '#ffd700',
+        stroke: '#000000',
+        strokeThickness: 4
+        }).setDepth(20);
+        this.tweens.add({
+            targets: lvlText,
+            y: lvlText.y - 36,
+            alpha: 0,
+            duration: 900,
+            onComplete: () => lvlText.destroy()
+        });
+    }
+    
+}
