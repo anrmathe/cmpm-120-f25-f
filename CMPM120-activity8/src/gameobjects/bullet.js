@@ -21,5 +21,15 @@ export class Bullet extends Phaser.GameObjects.Sprite {
         this.x += Math.cos(this.direction)*this.speed*dt;
         this.y += Math.sin(this.direction)*this.speed*dt;
         this.rotation += 15*dt;
+
+        let bounds = this.scene.cameras.main.worldView;
+        let margin = 100;
+        if (this.x < bounds.left - margin || 
+            this.x > bounds.right + margin || 
+            this.y < bounds.top - margin || 
+            this.y > bounds.bottom + margin)
+        {
+            this.destroy();
+        }
     }
 }
